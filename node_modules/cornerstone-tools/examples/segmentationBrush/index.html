@@ -1,0 +1,171 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <meta charset="utf-8">
+  <!-- support for mobile touch devices -->
+  <meta name="viewport" content="user-scalable=no, width=device-width, initial-scale=1, maximum-scale=1">
+  
+  <link href="../bootstrap.min.css" rel="stylesheet">
+  <link href="../dialogPolyfill.css" rel="stylesheet">
+  <link href="../cornerstone.min.css" rel="stylesheet">
+</head>
+<body>
+  <div class="container">
+    <div class="page-header">
+      <h1>
+        Segmentation Brush Example
+      </h1>
+      <p>
+        This page contains an example of the segmentation paintbrush tool
+      </p>
+      <a href="../index.html">Go back to the Examples page</a>
+    </div>
+
+    <div class="row">
+
+      <div class="col-xs-9">
+        <div style="width:512px;height:512px;position:relative;display:inline-block;"
+            oncontextmenu="return false"
+            class='cornerstone-enabled-image'
+            unselectable='on'
+            onselectstart='return false;'
+            onmousedown='return false;'>
+          <div id="dicomImage"
+            style="width:512px;height:512px;top:0px;left:0px; position:absolute;">
+          </div>
+        </div>
+      </div>
+      
+      <div class="col-xs-3">
+        <h5>Controls:</h5>
+        <ul>
+          <li>Left click paint</li>
+          <li>Middle Mouse button drag - pan</li>
+          <li>Right click drag - zoom</li>
+        </ul>
+
+        <div class="row">
+          <button id="drawErase" class="btn btn-primary">Erase</button>
+        </div>
+        <div class="row">
+            <label for="toolType">Type</label>
+            <select id="toolType" style="width:100%">
+                <option value="brush">Default</option>
+                <option value="adaptiveBrush">Adaptive</option>
+            </select>
+        </div>
+        
+        <div class="row">
+          <label for="radiusSlider">Radius: <span id="valBox">3</span>px</label>
+          <input id="radiusSlider" type="range" min="1" max="20" value="20" steps="1" style="width: 200px"/>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+
+<!-- include the cornerstone library -->
+<script src="../cornerstone.min.js"></script>
+  
+<script src="../cornerstoneMath.min.js"></script>
+
+<!-- include the cornerstone tools library -->
+<script src="../../dist/cornerstoneTools.js"></script>
+
+<!-- include special code for these examples which provides images -->
+<script src="../exampleImageLoader.js"></script>
+
+<script>
+  var radiusSlider = document.getElementById('radiusSlider');
+  var radius = radiusSlider.value;
+  var element = document.getElementById('dicomImage');
+
+  var configuration = cornerstoneTools.brush.getConfiguration();
+  configuration.radius = parseInt(radius, 10);
+
+  const colormapId = 'MyNewColorMap';
+  const colormap = cornerstone.colors.getColormap(colormapId);
+
+  colormap.setNumberOfColors(2);
+  colormap.setColor(0, [0, 0, 0, 0]);
+  colormap.setColor(1, [200, 0, 0, 255]);
+
+  configuration.colormapId = colormapId;
+
+  var toolType = 'brush';
+  cornerstoneTools.brush.setConfiguration(configuration);
+
+  var adaptiveConfig = cornerstoneTools.adaptiveBrush.getConfiguration();
+  adaptiveConfig.colormapId = colormapId;
+  cornerstoneTools.adaptiveBrush.setConfiguration(adaptiveConfig);
+
+  var imageIds = [
+      'example://1',
+      'example://2',
+  ];
+
+  var stack = {
+      currentImageIdIndex : 0,
+      imageIds: imageIds
+  };
+
+  cornerstone.enable(element);  
+  cornerstone.loadImage(imageIds[0]).then(function(image) {
+    cornerstone.addLayer(element, image);
+    cornerstone.updateImage(element);
+    var viewport = cornerstone.getViewport(element);
+    viewport.pixelReplication = true;
+    cornerstone.setViewport(element, viewport);
+
+    cornerstoneTools.addStackStateManager(element, ['stack']);
+    cornerstoneTools.addToolState(element, 'stack', stack);
+
+    cornerstoneTools.mouseInput.enable(element);
+    cornerstoneTools.mouseWheelInput.enable(element);
+    cornerstoneTools.stackScrollWheel.activate(element);
+    cornerstoneTools.pan.activate(element, 2);
+    cornerstoneTools.zoom.activate(element, 4);    
+    cornerstoneTools[toolType].activate(element, 1);
+  });
+
+  var drawEraseButton = document.getElementById('drawErase');
+  let drawValue = 1;
+  drawEraseButton.addEventListener('click', function () {
+    var configuration = cornerstoneTools[toolType].getConfiguration();
+    if (configuration.draw === 0) {
+      configuration.draw = 1;
+      drawEraseButton.textContent = "Erase";
+    } else {
+      configuration.draw = 0;
+      drawEraseButton.textContent = "Draw";
+    }
+    cornerstoneTools[toolType].setConfiguration(configuration);
+  });
+  
+  var radiusSlider = document.getElementById('radiusSlider');
+  radiusSlider.addEventListener('input', function(){
+    var configuration = cornerstoneTools[toolType].getConfiguration();
+    var radius = radiusSlider.value;
+    document.getElementById('valBox').textContent = radius;
+    configuration.radius = parseInt(radius, 10);
+    cornerstoneTools[toolType].setConfiguration(configuration);
+    cornerstone.updateImage(element, true);
+  });
+
+  var toolTypeSelect = document.getElementById('toolType');
+  toolTypeSelect.addEventListener('change', function(){
+    toolType = toolTypeSelect.value;
+    cornerstoneTools.brush.disable(element);
+    cornerstoneTools.adaptiveBrush.disable(element);
+
+    var configuration = cornerstoneTools[toolType].getConfiguration();
+    var radius = radiusSlider.value;
+    configuration.radius = parseInt(radius, 10);
+    configuration.draw = drawValue;
+    cornerstoneTools[toolType].setConfiguration(configuration);
+    
+    cornerstoneTools[toolType].activate(element, 1);
+    cornerstone.updateImage(element, true);
+  });
+</script>
+</html>
